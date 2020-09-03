@@ -1,0 +1,66 @@
+---
+title: "Submitting Project Week 2"
+author: "Oscar Alvarado"
+date: "2/9/2020"
+output: html_document
+---
+
+
+## Loading and preprocessing the data
+```{r}
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+
+urldata<- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(urldata, "stepsdata.zip")
+unzip("stepsdata.zip")
+stepsdata<-read.csv("activity.csv")
+head(stepsdata)
+stepsdata$date<- ymd(stepsdata$date)
+```
+
+## Histrogram, mean and median of Steps by Day
+```{r}
+stepsdataday<-stepsdata%>%group_by(date)%>%summarise(steps.by.day=sum(steps, na.rm = T))
+with(stepsdataday, hist(steps.by.day, xlab="Steps by Day", main = "Frequency of Steps by day", col = "red"))
+mean(stepsdataday$steps.by.day, na.rm = T)
+median(stepsdataday$steps.by.day, na.rm = T)
+```
+
+## What is the average daily activity pattern?
+```{r}
+intervaldata<-stepsdata%>%group_by(interval)%>%summarise(steps.mean=mean(steps, na.rm = T))
+
+with(intervaldata, plot(interval, steps.mean, type="l"))
+axis(side=1, at= seq(0,2500, by=100))
+intervaldata[which.max(intervaldata$steps.mean),]
+```
+
+## Imputing missing values
+```{r}
+initialmean<-tapply(stepsdata$steps, stepsdata$interval, mean, na.rm=T)
+sum(!complete.cases(stepsdata))
+## Replacing NAs by The median of each interval
+stepsdataNoNA<-stepsdata
+for(i in seq(from=0, to=2355, by=5)){
+        stepsdataNoNA$steps[is.na(stepsdataNoNA$steps) &   stepsdataNoNA$interval==i]<-mean(stepsdataNoNA$steps[stepsdataNoNA$interval==i], na.rm = T)
+}
+sum(!complete.cases(stepsdataNoNA))
+```
+### Histrogram, mean and median of Steps by Day without NAs
+```{r}
+stepsdatadayNoNA<-stepsdataNoNA%>%group_by(date)%>%summarise(steps.by.day=sum(steps, na.rm = T))
+with(stepsdatadayNoNA, hist(steps.by.day, xlab="Steps by Day", main = "Frequency of Steps by day", col = "blue"))
+mean(stepsdatadayNoNA$steps.by.day, na.rm = T)
+median(stepsdatadayNoNA$steps.by.day, na.rm = T)
+```
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+stepsdataNoNA$weekday<- weekdays(stepsdataNoNA$date)
+stepsdataNoNA$WeekGroup<- ifelse(stepsdataNoNA$weekday%in%c("sábado", "domingo"), "weekend","weekday")
+Groups<-stepsdataNoNA%>%group_by(WeekGroup, interval)%>%summarise(mean.steps.by.day=mean(steps))
+ggplot(Groups, aes(interval, mean.steps.by.day))+facet_wrap(.~WeekGroup)+geom_line()+theme_bw()
+
+```
